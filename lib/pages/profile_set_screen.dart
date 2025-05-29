@@ -1,5 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:g_chat/pages/signup_screen.dart';
+import 'package:image_picker/image_picker.dart';
+import 'dart:io';
+
 
 class ProfileSetScreen extends StatefulWidget {
   const ProfileSetScreen({Key? key}) : super(key: key);
@@ -9,6 +12,16 @@ class ProfileSetScreen extends StatefulWidget {
 }
 
 class _ProfileSetScreenState extends State<ProfileSetScreen> {
+
+
+
+
+  File? _imageFile;
+  final ImagePicker _picker = ImagePicker();
+
+
+
+
   final TextEditingController _firstNameController = TextEditingController();
   final TextEditingController _lastNameController = TextEditingController();
 
@@ -18,6 +31,16 @@ class _ProfileSetScreenState extends State<ProfileSetScreen> {
     _lastNameController.dispose();
     super.dispose();
   }
+
+  Future<void> _pickImage() async {
+    final pickedFile = await _picker.pickImage(source: ImageSource.gallery);
+    if (pickedFile != null) {
+      setState(() {
+        _imageFile = File(pickedFile.path);
+      });
+    }
+  }
+
 
   @override
   Widget build(BuildContext context) {
@@ -63,45 +86,49 @@ class _ProfileSetScreenState extends State<ProfileSetScreen> {
                 const SizedBox(height: 40),
 
                 // Custom Profile Picture
-                GestureDetector(
-                  onTap: () {
-                    // Add image picker logic here
-                  },
-                  child: Stack(
-                    children: [
-                      CircleAvatar(
-                        radius: 60,
-                        backgroundColor: Colors.black,
-                        child: Image.asset(
-                          'assets/images/profile_placeholder.png', // Your custom PNG
-                          width: 120,
-                          height: 120,
-                          errorBuilder: (_, __, ___) => const Icon(
-                            Icons.person,
-                            size: 60,
-                            color: Colors.white54,
-                          ),
+              GestureDetector(
+                onTap: _pickImage, // 👈 Call the method
+                child: Stack(
+                  children: [
+                    CircleAvatar(
+                      radius: 60,
+                      backgroundColor: Colors.black,
+                      backgroundImage:
+                      _imageFile != null ? FileImage(_imageFile!) : null, // 👈 show picked image
+                      child: _imageFile == null
+                          ? Image.asset(
+                        'assets/images/profile_placeholder.png',
+                        width: 120,
+                        height: 120,
+                        errorBuilder: (_, __, ___) => const Icon(
+                          Icons.person,
+                          size: 60,
+                          color: Colors.white54,
+                        ),
+                      )
+                          : null,
+                    ),
+                    // Camera icon (no changes)
+                    Positioned(
+                      bottom: 0,
+                      right: 0,
+                      child: Container(
+                        padding: const EdgeInsets.all(4),
+                        decoration: const BoxDecoration(
+                          color: Color(0xFF81D8D0),
+                          shape: BoxShape.circle,
+                        ),
+                        child: const Icon(
+                          Icons.camera_alt,
+                          size: 20,
+                          color: Colors.white,
                         ),
                       ),
-                      Positioned(
-                        bottom: 0,
-                        right: 0,
-                        child: Container(
-                          padding: const EdgeInsets.all(4),
-                          decoration: const BoxDecoration(
-                            color: Color(0xFF81D8D0),
-                            shape: BoxShape.circle,
-                          ),
-                          child: const Icon(
-                            Icons.camera_alt,
-                            size: 20,
-                            color: Colors.white,
-                          ),
-                        ),
-                      ),
-                    ],
-                  ),
+                    ),
+                  ],
                 ),
+              ),
+
                 const SizedBox(height: 40),
 
                 // First Name Field
