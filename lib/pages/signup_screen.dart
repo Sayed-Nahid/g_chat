@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:g_chat/pages/login_screen.dart';
+import 'package:g_chat/pages/profile_set_screen.dart';
 
 class SignupScreen extends StatefulWidget {
   const SignupScreen({Key? key}) : super(key: key);
@@ -313,7 +314,12 @@ class _SignupScreenState extends State<SignupScreen> {
                 const SizedBox(height: 30),
 
                 ElevatedButton(
-                  onPressed: _onNextPressed,
+                  onPressed: (){
+                    Navigator.push(
+                      context,
+                      MaterialPageRoute(builder: (context) => ProfileSetScreen()),
+                    );
+                  },
                   style: ElevatedButton.styleFrom(
                     padding: const EdgeInsets.symmetric(horizontal: 120, vertical: 18),
                     backgroundColor: const Color(0xFF81D8D0),

@@ -22,6 +22,7 @@ class _ProfileSetScreenState extends State<ProfileSetScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
+      backgroundColor: Colors.transparent,
       appBar: AppBar(
         backgroundColor: Colors.transparent,
         elevation: 0,
@@ -38,6 +39,9 @@ class _ProfileSetScreenState extends State<ProfileSetScreen> {
             end: Alignment.bottomCenter,
           ),
         ),
+        constraints: BoxConstraints(
+          minHeight: MediaQuery.of(context).size.height,
+        ),
         child: SafeArea(
           child: SingleChildScrollView(
             padding: const EdgeInsets.all(16.0),
@@ -45,7 +49,7 @@ class _ProfileSetScreenState extends State<ProfileSetScreen> {
               children: [
                 const SizedBox(height: 20),
                 Text(
-                  'Set Up Your Profile',
+                  'Profile setting',
                   style: Theme.of(context).textTheme.headlineMedium?.copyWith(
                     fontWeight: FontWeight.bold,
                     color: Colors.white,
@@ -67,11 +71,11 @@ class _ProfileSetScreenState extends State<ProfileSetScreen> {
                     children: [
                       CircleAvatar(
                         radius: 60,
-                        backgroundColor: Colors.grey[800],
+                        backgroundColor: Colors.black,
                         child: Image.asset(
                           'assets/images/profile_placeholder.png', // Your custom PNG
-                          width: 100,
-                          height: 100,
+                          width: 120,
+                          height: 120,
                           errorBuilder: (_, __, ___) => const Icon(
                             Icons.person,
                             size: 60,
