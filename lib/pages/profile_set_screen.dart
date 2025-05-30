@@ -12,16 +12,8 @@ class ProfileSetScreen extends StatefulWidget {
 }
 
 class _ProfileSetScreenState extends State<ProfileSetScreen> {
-
-
-
-
   File? _imageFile;
   final ImagePicker _picker = ImagePicker();
-
-
-
-
   final TextEditingController _firstNameController = TextEditingController();
   final TextEditingController _lastNameController = TextEditingController();
 
@@ -33,13 +25,47 @@ class _ProfileSetScreenState extends State<ProfileSetScreen> {
   }
 
   Future<void> _pickImage() async {
-    final pickedFile = await _picker.pickImage(source: ImageSource.gallery);
-    if (pickedFile != null) {
-      setState(() {
-        _imageFile = File(pickedFile.path);
-      });
-    }
+    showModalBottomSheet(
+      context: context,
+      backgroundColor: Colors.grey[900],
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(16)),
+      ),
+      builder: (_) {
+        return Wrap(
+          children: [
+            ListTile(
+              leading: const Icon(Icons.camera_alt, color: Colors.white),
+              title: const Text('Take Photo', style: TextStyle(color: Colors.white)),
+              onTap: () async {
+                Navigator.pop(context);
+                final pickedFile = await _picker.pickImage(source: ImageSource.camera);
+                if (pickedFile != null) {
+                  setState(() {
+                    _imageFile = File(pickedFile.path);
+                  });
+                }
+              },
+            ),
+            ListTile(
+              leading: const Icon(Icons.photo_library, color: Colors.white),
+              title: const Text('Choose from Gallery', style: TextStyle(color: Colors.white)),
+              onTap: () async {
+                Navigator.pop(context);
+                final pickedFile = await _picker.pickImage(source: ImageSource.gallery);
+                if (pickedFile != null) {
+                  setState(() {
+                    _imageFile = File(pickedFile.path);
+                  });
+                }
+              },
+            ),
+          ],
+        );
+      },
+    );
   }
+
 
 
   @override
@@ -72,7 +98,7 @@ class _ProfileSetScreenState extends State<ProfileSetScreen> {
               children: [
                 const SizedBox(height: 20),
                 Text(
-                  'Profile setting',
+                  'Complete Your Profile',
                   style: Theme.of(context).textTheme.headlineMedium?.copyWith(
                     fontWeight: FontWeight.bold,
                     color: Colors.white,
