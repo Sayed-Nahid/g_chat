@@ -1,8 +1,7 @@
 import 'package:flutter/material.dart';
-import 'package:g_chat/pages/signup_screen.dart';
 import 'package:image_picker/image_picker.dart';
+import 'package:image_cropper/image_cropper.dart';
 import 'dart:io';
-
 
 class ProfileSetScreen extends StatefulWidget {
   const ProfileSetScreen({Key? key}) : super(key: key);
@@ -24,6 +23,47 @@ class _ProfileSetScreenState extends State<ProfileSetScreen> {
     super.dispose();
   }
 
+  Future<File?> _cropImage(XFile pickedFile) async {
+    try {
+      final croppedFile = await ImageCropper().cropImage(
+        sourcePath: pickedFile.path,
+        aspectRatio: const CropAspectRatio(ratioX: 1, ratioY: 1),
+        uiSettings: [
+          AndroidUiSettings(
+            toolbarTitle: 'Crop Profile',
+            toolbarColor: Colors.black,
+            toolbarWidgetColor: Colors.white,
+            initAspectRatio: CropAspectRatioPreset.square,
+            lockAspectRatio: true,
+            hideBottomControls: true,
+            showCropGrid: false,
+            statusBarColor: Colors.black,
+            backgroundColor: Colors.black,
+            activeControlsWidgetColor: const Color(0xFF81D8D0),
+            dimmedLayerColor: Colors.black.withOpacity(0.8),
+          ),
+          IOSUiSettings(
+            title: 'Crop Profile',
+            aspectRatioLockEnabled: true,
+            resetButtonHidden: true,
+            rotateButtonsHidden: true,
+            aspectRatioPickerButtonHidden: true,
+          ),
+        ],
+        compressQuality: 85,
+      );
+      return croppedFile != null ? File(croppedFile.path) : null;
+    } catch (e) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text('Error cropping image: ${e.toString()}'),
+          backgroundColor: Colors.red,
+        ),
+      );
+      return null;
+    }
+  }
+
   Future<void> _pickImage() async {
     showModalBottomSheet(
       context: context,
@@ -41,9 +81,10 @@ class _ProfileSetScreenState extends State<ProfileSetScreen> {
                 Navigator.pop(context);
                 final pickedFile = await _picker.pickImage(source: ImageSource.camera);
                 if (pickedFile != null) {
-                  setState(() {
-                    _imageFile = File(pickedFile.path);
-                  });
+                  File? cropped = await _cropImage(pickedFile);
+                  if (cropped != null) {
+                    setState(() => _imageFile = cropped);
+                  }
                 }
               },
             ),
@@ -54,9 +95,10 @@ class _ProfileSetScreenState extends State<ProfileSetScreen> {
                 Navigator.pop(context);
                 final pickedFile = await _picker.pickImage(source: ImageSource.gallery);
                 if (pickedFile != null) {
-                  setState(() {
-                    _imageFile = File(pickedFile.path);
-                  });
+                  File? cropped = await _cropImage(pickedFile);
+                  if (cropped != null) {
+                    setState(() => _imageFile = cropped);
+                  }
                 }
               },
             ),
@@ -65,8 +107,6 @@ class _ProfileSetScreenState extends State<ProfileSetScreen> {
       },
     );
   }
-
-
 
   @override
   Widget build(BuildContext context) {
@@ -111,53 +151,65 @@ class _ProfileSetScreenState extends State<ProfileSetScreen> {
                 ),
                 const SizedBox(height: 40),
 
-                // Custom Profile Picture
-              GestureDetector(
-                onTap: _pickImage, // 👈 Call the method
-                child: Stack(
-                  children: [
-                    CircleAvatar(
-                      radius: 60,
-                      backgroundColor: Colors.black,
-                      backgroundImage:
-                      _imageFile != null ? FileImage(_imageFile!) : null, // 👈 show picked image
-                      child: _imageFile == null
-                          ? Image.asset(
-                        'assets/images/profile_placeholder.png',
-                        width: 120,
-                        height: 120,
-                        errorBuilder: (_, __, ___) => const Icon(
-                          Icons.person,
-                          size: 60,
-                          color: Colors.white54,
+                // Profile Picture Widget
+                GestureDetector(
+                  onTap: _pickImage,
+                  child: Stack(
+                    alignment: Alignment.center,
+                    children: [
+                      // Show placeholder without border when no image is selected
+                      if (_imageFile == null)
+                        Image.asset(
+                          'assets/images/profile_placeholder.png',
+                          width: 120,
+                          height: 120,
+                          errorBuilder: (_, __, ___) => const Icon(
+                            Icons.person,
+                            size: 60,
+                            color: Colors.white54,
+                          ),
                         ),
-                      )
-                          : null,
-                    ),
-                    // Camera icon (no changes)
-                    Positioned(
-                      bottom: 0,
-                      right: 0,
-                      child: Container(
-                        padding: const EdgeInsets.all(4),
-                        decoration: const BoxDecoration(
-                          color: Color(0xFF81D8D0),
-                          shape: BoxShape.circle,
+
+                      // Show image with white border when selected
+                      if (_imageFile != null)
+                        Container(
+                          width: 120,
+                          height: 120,
+                          decoration: BoxDecoration(
+                            shape: BoxShape.circle,
+                            border: Border.all(
+                              color: Colors.white,
+                              width: 2,
+                            ),
+                            image: DecorationImage(
+                              image: FileImage(_imageFile!),
+                              fit: BoxFit.cover,
+                            ),
+                          ),
                         ),
-                        child: const Icon(
-                          Icons.camera_alt,
-                          size: 20,
-                          color: Colors.white,
+
+                      // Camera icon overlay
+                      Positioned(
+                        bottom: 0,
+                        right: _imageFile == null ? 0 : 10, // Adjust position based on border
+                        child: Container(
+                          padding: const EdgeInsets.all(4),
+                          decoration: const BoxDecoration(
+                            color: Color(0xFF81D8D0),
+                            shape: BoxShape.circle,
+                          ),
+                          child: const Icon(
+                            Icons.camera_alt,
+                            size: 20,
+                            color: Colors.white,
+                          ),
                         ),
                       ),
-                    ),
-                  ],
+                    ],
+                  ),
                 ),
-              ),
 
                 const SizedBox(height: 40),
-
-                // First Name Field
                 TextFormField(
                   controller: _firstNameController,
                   decoration: InputDecoration(
@@ -178,7 +230,6 @@ class _ProfileSetScreenState extends State<ProfileSetScreen> {
                 ),
                 const SizedBox(height: 20),
 
-                // Last Name Field
                 TextFormField(
                   controller: _lastNameController,
                   decoration: InputDecoration(
@@ -199,7 +250,6 @@ class _ProfileSetScreenState extends State<ProfileSetScreen> {
                 ),
                 const SizedBox(height: 60),
 
-                // Next Button
                 ElevatedButton(
                   onPressed: () {
                     if (_firstNameController.text.isEmpty) {
