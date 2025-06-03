@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:image_picker/image_picker.dart';
 import 'package:image_cropper/image_cropper.dart';
+import 'package:g_chat/pages/dashboard_screen.dart';
 import 'dart:io';
 
 class ProfileSetScreen extends StatefulWidget {
@@ -194,6 +195,10 @@ class _ProfileSetScreenState extends State<ProfileSetScreen> {
 
     // TODO: Implement profile submission logic
     // Navigator.push(...);
+    Navigator.pushReplacement(
+      context,
+      MaterialPageRoute(builder: (context) => const DashboardScreen()),
+    );
   }
 
   Widget _buildProfileImage() {
