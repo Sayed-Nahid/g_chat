@@ -43,3 +43,23 @@ app.*.map.json
 /android/app/debug
 /android/app/profile
 /android/app/release
+
+
+# Flutter/Dart
+.dart_tool/
+.packages
+build/
+.pub-cache/
+.flutter-plugins
+.flutter-plugins-dependencies
+.melos_tool/
+
+# Android
+android/.gradle/
+android/app/build/
+.gradle/
+
+# iOS
+ios/Pods/
+ios/Runner.xcworkspace/
+
