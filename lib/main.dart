@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:g_chat/pages/dashboard_screen.dart';
 import 'package:g_chat/pages/profile_set_screen.dart';
 import 'package:g_chat/pages/splash_screen.dart';
 
@@ -36,7 +37,7 @@ class MyApp extends StatelessWidget {
         ),
       ),
       debugShowCheckedModeBanner: false,
-      home: const GradientBackground(child: SplashScreen()),
+      home: const GradientBackground(child: SplashScreen()), //DashboardScreen()
     );
   }
 }
