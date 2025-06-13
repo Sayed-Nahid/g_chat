@@ -33,14 +33,16 @@ dependencies:
   image_picker: ^1.0.4
   image_cropper: ^9.1.0
   cupertino_icons: ^1.0.8
-
-dev_dependencies:
-  flutter_test:
-    sdk: flutter
   firebase_core: ^2.30.0
   firebase_auth: ^4.17.4
   cloud_firestore: ^4.17.2
   firebase_storage: ^11.6.6
+
+dev_dependencies:
+  flutter_test:
+    sdk: flutter
+  #flutter_lints: ^5.0.0
+
 
   # The "flutter_lints" package below contains a set of recommended lints to
   # encourage good coding practices. The lint set provided by the package is

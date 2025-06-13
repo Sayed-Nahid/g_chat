@@ -169,7 +169,7 @@ class ChatListPage extends StatelessWidget {
   const ChatListPage({Key? key}) : super(key: key);
 
   final List<Map<String, String>> dummyChats = const [
-    {"name": "Azman", "lastMessage": "Hey there!", "time": "9:00 AM"},
+    {"name": "Zaman", "lastMessage": "Hey there!", "time": "9:00 AM"},
     {"name": "GPT Bot", "lastMessage": "Let’s build your app!", "time": "8:30 AM"},
     {"name": "John Doe", "lastMessage": "I'll call you later.", "time": "Yesterday"},
     {"name": "Flutter Dev", "lastMessage": "We are live!", "time": "2 days ago"},

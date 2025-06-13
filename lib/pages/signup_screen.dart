@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:firebase_auth/firebase_auth.dart';
 import 'package:g_chat/pages/login_screen.dart';
 import 'package:g_chat/pages/profile_set_screen.dart';
 
@@ -10,11 +11,12 @@ class SignupScreen extends StatefulWidget {
 }
 
 class _SignupScreenState extends State<SignupScreen> {
-  // [ALL YOUR EXISTING CODE REMAINS UNCHANGED]
   bool isPhoneSelected = true;
   String? selectedCountry;
   bool showSendButton = false;
   bool showVerificationField = false;
+  bool _isVerifying = false;
+  String? _verificationId;
 
   final Map<String, String> countryCodes = {
     'Bangladesh': '+880',
@@ -24,7 +26,6 @@ class _SignupScreenState extends State<SignupScreen> {
     'UK': '+44',
   };
 
-  // Minimum digits required after country code
   final Map<String, int> countryMinDigits = {
     'Bangladesh': 10,
     'Australia': 9,
@@ -43,7 +44,6 @@ class _SignupScreenState extends State<SignupScreen> {
     phoneEmailController = TextEditingController();
     verificationController = TextEditingController();
 
-    // Set initial country code without triggering validation
     WidgetsBinding.instance.addPostFrameCallback((_) {
       if (isPhoneSelected && selectedCountry != null && mounted) {
         final code = countryCodes[selectedCountry]!;
@@ -56,20 +56,11 @@ class _SignupScreenState extends State<SignupScreen> {
   }
 
   bool _validatePhone(String phone) {
-    // Must start with country code
-    if (!phone.startsWith(countryCodes[selectedCountry]!)) {
-      return false;
-    }
+    if (!phone.startsWith(countryCodes[selectedCountry]!)) return false;
 
-    // Get digits after country code
     final digits = phone.substring(countryCodes[selectedCountry]!.length);
+    if (!RegExp(r'^\d+$').hasMatch(digits)) return false;
 
-    // Must contain only numbers
-    if (!RegExp(r'^\d+$').hasMatch(digits)) {
-      return false;
-    }
-
-    // Must meet minimum length for country
     return digits.length >= (countryMinDigits[selectedCountry] ?? 8);
   }
 
@@ -82,7 +73,6 @@ class _SignupScreenState extends State<SignupScreen> {
     bool isValid;
 
     if (isPhoneSelected) {
-      // For phone, require full valid number (country code + digits)
       isValid = _validatePhone(input) &&
           input.length > countryCodes[selectedCountry]!.length;
     } else {
@@ -97,14 +87,6 @@ class _SignupScreenState extends State<SignupScreen> {
     }
   }
 
-  void _onSendPressed() {
-    if (mounted) {
-      setState(() {
-        showVerificationField = true;
-      });
-    }
-  }
-
   void _showError(String message) {
     ScaffoldMessenger.of(context).showSnackBar(
       SnackBar(
@@ -115,28 +97,84 @@ class _SignupScreenState extends State<SignupScreen> {
     );
   }
 
-  void _onNextPressed() {
+  void _onSendPressed() async {
+    final phone = phoneEmailController.text.trim();
+
+    if (!_validatePhone(phone)) {
+      _showError('Enter a valid phone number.');
+      return;
+    }
+
+    setState(() {
+      _isVerifying = true;
+    });
+
+    try {
+      await FirebaseAuth.instance.verifyPhoneNumber(
+        phoneNumber: phone,
+        timeout: const Duration(seconds: 60),
+        verificationCompleted: (PhoneAuthCredential credential) async {
+          await FirebaseAuth.instance.signInWithCredential(credential);
+          _showError('Phone auto-verified!');
+        },
+        verificationFailed: (FirebaseAuthException e) {
+          _showError('Verification failed: ${e.message}');
+        },
+        codeSent: (String verificationId, int? resendToken) {
+          setState(() {
+            _verificationId = verificationId;
+            showVerificationField = true;
+          });
+        },
+        codeAutoRetrievalTimeout: (String verificationId) {
+          _verificationId = verificationId;
+        },
+      );
+    } catch (e) {
+      _showError('Failed to send OTP: $e');
+    } finally {
+      setState(() {
+        _isVerifying = false;
+      });
+    }
+  }
+
+  void _onNextPressed() async {
     final input = phoneEmailController.text.trim();
+    final code = verificationController.text.trim();
 
     if (isPhoneSelected) {
       if (!_validatePhone(input)) {
         _showError('Please enter a valid ${selectedCountry} phone number');
         return;
       }
-    } else {
-      if (!_validateEmail(input)) {
-        _showError('Please enter a valid email address');
+
+      if (showVerificationField && code.isEmpty) {
+        _showError('Please enter verification code');
         return;
       }
-    }
 
-    if (showVerificationField && verificationController.text.isEmpty) {
-      _showError('Please enter verification code');
-      return;
-    }
+      if (_verificationId != null) {
+        try {
+          PhoneAuthCredential credential = PhoneAuthProvider.credential(
+            verificationId: _verificationId!,
+            smsCode: code,
+          );
+          await FirebaseAuth.instance.signInWithCredential(credential);
 
-    // Proceed with signup
-    print('Proceeding with: $input');
+          Navigator.pushReplacement(
+            context,
+            MaterialPageRoute(builder: (_) => const ProfileSetScreen()),
+          );
+        } catch (e) {
+          _showError('Invalid verification code');
+        }
+      } else {
+        _showError('Verification ID is missing. Tap Send again.');
+      }
+    } else {
+      _showError('Email signup not implemented yet');
+    }
   }
 
   @override
@@ -151,16 +189,16 @@ class _SignupScreenState extends State<SignupScreen> {
     final labelText = isPhoneSelected ? 'Phone Number' : 'Email Address';
 
     return Scaffold(
-      backgroundColor: Colors.transparent, // CHANGE 1: Made transparent
+      backgroundColor: Colors.transparent,
       appBar: AppBar(
-        backgroundColor: Colors.transparent, // Kept transparent
+        backgroundColor: Colors.transparent,
         elevation: 0,
         leading: IconButton(
           icon: const Icon(Icons.arrow_back, color: Colors.white),
           onPressed: () => Navigator.of(context).pop(),
         ),
       ),
-      body: Container( // CHANGE 2: Added gradient container
+      body: Container(
         decoration: const BoxDecoration(
           gradient: LinearGradient(
             colors: [Color(0xFF000000), Color(0xFF343434)],
@@ -172,9 +210,7 @@ class _SignupScreenState extends State<SignupScreen> {
           child: SingleChildScrollView(
             padding: const EdgeInsets.all(16.0),
             child: Column(
-              mainAxisAlignment: MainAxisAlignment.center,
               children: [
-                // [ALL YOUR EXISTING WIDGETS REMAIN UNCHANGED]
                 Image.asset(
                   'assets/images/logo.png',
                   width: 150,
@@ -187,15 +223,10 @@ class _SignupScreenState extends State<SignupScreen> {
                   style: Theme.of(context).textTheme.headlineMedium?.copyWith(
                     fontWeight: FontWeight.bold,
                     color: Colors.white,
-                  ) ?? const TextStyle(
-                    fontSize: 24,
-                    fontWeight: FontWeight.bold,
-                    color: Colors.white,
                   ),
                 ),
                 const SizedBox(height: 30),
 
-                // Country/Region Dropdown
                 DropdownButtonFormField<String>(
                   value: selectedCountry,
                   decoration: InputDecoration(
@@ -255,7 +286,7 @@ class _SignupScreenState extends State<SignupScreen> {
                   Align(
                     alignment: Alignment.centerRight,
                     child: TextButton(
-                      onPressed: _onSendPressed,
+                      onPressed: _isVerifying ? null : _onSendPressed,
                       child: const Text(
                         'Send',
                         style: TextStyle(color: Colors.lightBlueAccent),
@@ -314,12 +345,7 @@ class _SignupScreenState extends State<SignupScreen> {
                 const SizedBox(height: 30),
 
                 ElevatedButton(
-                  onPressed: (){
-                    Navigator.push(
-                      context,
-                      MaterialPageRoute(builder: (context) => ProfileSetScreen()),
-                    );
-                  },
+                  onPressed: _onNextPressed,
                   style: ElevatedButton.styleFrom(
                     padding: const EdgeInsets.symmetric(horizontal: 120, vertical: 18),
                     backgroundColor: const Color(0xFF81D8D0),
@@ -327,9 +353,9 @@ class _SignupScreenState extends State<SignupScreen> {
                       borderRadius: BorderRadius.circular(8),
                     ),
                   ),
-                  child: const Text( // CHANGE 3: Removed manual white color
+                  child: const Text(
                     'Next',
-                    style: TextStyle(fontSize: 18), // Now uses theme's default
+                    style: TextStyle(fontSize: 18),
                   ),
                 ),
 
@@ -339,7 +365,7 @@ class _SignupScreenState extends State<SignupScreen> {
                   onPressed: () {
                     Navigator.push(
                       context,
-                      MaterialPageRoute(builder: (context) => LoginScreen()),
+                      MaterialPageRoute(builder: (context) => const LoginScreen()),
                     );
                   },
                   child: const Text(
