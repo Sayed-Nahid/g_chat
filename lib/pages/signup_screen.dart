@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:g_chat/pages/login_screen.dart';
 import 'package:g_chat/pages/profile_set_screen.dart';
+import 'package:g_chat/pages/email_verification_waiting_screen.dart'; // ✅ new screen
 
 class SignupScreen extends StatefulWidget {
   const SignupScreen({Key? key}) : super(key: key);
@@ -57,10 +58,8 @@ class _SignupScreenState extends State<SignupScreen> {
 
   bool _validatePhone(String phone) {
     if (!phone.startsWith(countryCodes[selectedCountry]!)) return false;
-
     final digits = phone.substring(countryCodes[selectedCountry]!.length);
     if (!RegExp(r'^\d+$').hasMatch(digits)) return false;
-
     return digits.length >= (countryMinDigits[selectedCountry] ?? 8);
   }
 
@@ -173,7 +172,35 @@ class _SignupScreenState extends State<SignupScreen> {
         _showError('Verification ID is missing. Tap Send again.');
       }
     } else {
-      _showError('Email signup not implemented yet');
+      final email = input;
+      final password = 'defaultPass123'; // Replace with real password later
+
+      try {
+        final credential = await FirebaseAuth.instance.createUserWithEmailAndPassword(
+          email: email,
+          password: password,
+        );
+
+        final user = credential.user;
+
+        if (user != null && !user.emailVerified) {
+          await user.sendEmailVerification();
+
+          // ✅ Go to email verification waiting screen
+          Navigator.pushReplacement(
+            context,
+            MaterialPageRoute(builder: (_) => const EmailVerificationWaitingScreen()),
+          );
+        }
+      } on FirebaseAuthException catch (e) {
+        if (e.code == 'email-already-in-use') {
+          _showError('Email is already in use');
+        } else if (e.code == 'invalid-email') {
+          _showError('Invalid email address');
+        } else {
+          _showError('Signup failed: ${e.message}');
+        }
+      }
     }
   }
 
@@ -227,41 +254,44 @@ class _SignupScreenState extends State<SignupScreen> {
                 ),
                 const SizedBox(height: 30),
 
-                DropdownButtonFormField<String>(
-                  value: selectedCountry,
-                  decoration: InputDecoration(
-                    labelText: 'Country/Region',
-                    labelStyle: const TextStyle(color: Colors.white),
-                    enabledBorder: OutlineInputBorder(
-                      borderSide: const BorderSide(color: Colors.white),
-                      borderRadius: BorderRadius.circular(8),
+                if (isPhoneSelected)
+                  DropdownButtonFormField<String>(
+                    value: selectedCountry,
+                    decoration: InputDecoration(
+                      labelText: 'Country/Region',
+                      labelStyle: const TextStyle(color: Colors.white),
+                      enabledBorder: OutlineInputBorder(
+                        borderSide: const BorderSide(color: Colors.white),
+                        borderRadius: BorderRadius.circular(8),
+                      ),
+                      focusedBorder: OutlineInputBorder(
+                        borderSide: const BorderSide(color: Colors.white),
+                        borderRadius: BorderRadius.circular(8),
+                      ),
                     ),
-                    focusedBorder: OutlineInputBorder(
-                      borderSide: const BorderSide(color: Colors.white),
-                      borderRadius: BorderRadius.circular(8),
-                    ),
+                    dropdownColor: Colors.grey[900],
+                    iconEnabledColor: Colors.white,
+                    items: countryCodes.keys.map((country) {
+                      return DropdownMenuItem(
+                        value: country,
+                        child: Text(country, style: const TextStyle(color: Colors.white)),
+                      );
+                    }).toList(),
+                    onChanged: (value) {
+                      if (value != null && mounted) {
+                        setState(() {
+                          selectedCountry = value;
+                          if (isPhoneSelected) {
+                            phoneEmailController.text = countryCodes[value]!;
+                            phoneEmailController.selection =
+                                TextSelection.collapsed(offset: countryCodes[value]!.length);
+                            _handleInputChange();
+                          }
+                        });
+                      }
+                    },
                   ),
-                  dropdownColor: Colors.grey[900],
-                  iconEnabledColor: Colors.white,
-                  items: countryCodes.keys.map((country) => DropdownMenuItem(
-                    value: country,
-                    child: Text(country, style: const TextStyle(color: Colors.white)),
-                  )).toList(),
-                  onChanged: (value) {
-                    if (value != null && mounted) {
-                      setState(() {
-                        selectedCountry = value;
-                        if (isPhoneSelected) {
-                          phoneEmailController.text = countryCodes[value]!;
-                          phoneEmailController.selection = TextSelection.collapsed(
-                            offset: countryCodes[value]!.length,
-                          );
-                          _handleInputChange();
-                        }
-                      });
-                    }
-                  },
-                ),
+
                 const SizedBox(height: 20),
 
                 TextFormField(
@@ -282,7 +312,7 @@ class _SignupScreenState extends State<SignupScreen> {
                   style: const TextStyle(color: Colors.white),
                 ),
 
-                if (showSendButton)
+                if (showSendButton && isPhoneSelected)
                   Align(
                     alignment: Alignment.centerRight,
                     child: TextButton(
@@ -330,8 +360,7 @@ class _SignupScreenState extends State<SignupScreen> {
                         if (isPhoneSelected && selectedCountry != null) {
                           phoneEmailController.text = countryCodes[selectedCountry]!;
                           phoneEmailController.selection = TextSelection.collapsed(
-                            offset: countryCodes[selectedCountry]!.length,
-                          );
+                              offset: countryCodes[selectedCountry]!.length);
                         }
                       });
                     }
