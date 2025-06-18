@@ -2,7 +2,8 @@ import 'package:flutter/material.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:g_chat/pages/login_screen.dart';
 import 'package:g_chat/pages/profile_set_screen.dart';
-import 'package:g_chat/pages/email_verification_waiting_screen.dart'; // ✅ new screen
+import 'package:g_chat/pages/email_verification_waiting_screen.dart';
+import 'package:g_chat/pages/set_password_screen.dart'; // ✅ new screen
 
 class SignupScreen extends StatefulWidget {
   const SignupScreen({Key? key}) : super(key: key);

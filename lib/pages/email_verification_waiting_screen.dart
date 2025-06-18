@@ -2,6 +2,7 @@ import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:g_chat/pages/profile_set_screen.dart';
+import 'package:g_chat/pages/set_password_screen.dart';
 
 class EmailVerificationWaitingScreen extends StatefulWidget {
   const EmailVerificationWaitingScreen({Key? key}) : super(key: key);
@@ -36,7 +37,7 @@ class _EmailVerificationWaitingScreenState
         if (mounted) {
           Navigator.pushReplacement(
             context,
-            MaterialPageRoute(builder: (_) => const ProfileSetScreen()),
+            MaterialPageRoute(builder: (_) => const SetPasswordScreen()),
           );
         }
       }

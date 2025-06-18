@@ -3,7 +3,7 @@ import 'package:g_chat/pages/dashboard_screen.dart';
 import 'package:g_chat/pages/profile_set_screen.dart';
 import 'package:g_chat/pages/splash_screen.dart';
 import 'package:firebase_core/firebase_core.dart';
-
+import 'package:g_chat/pages/set_password_screen.dart';
 import 'firebase_options.dart';
 
 void main() async {
@@ -44,7 +44,7 @@ class MyApp extends StatelessWidget {
         ),
       ),
       debugShowCheckedModeBanner: false,
-      home: const GradientBackground(child: SplashScreen()), //DashboardScreen()
+      home: const GradientBackground(child: SplashScreen()), //DashboardScreen() Screen() SetPassword
     );
   }
 }
