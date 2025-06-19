@@ -1,4 +1,6 @@
 import 'package:flutter/material.dart';
+import 'package:firebase_auth/firebase_auth.dart';
+import 'package:g_chat/pages/dashboard_screen.dart';
 import 'package:g_chat/pages/signup_screen.dart';
 
 class LoginScreen extends StatefulWidget {
@@ -9,23 +11,17 @@ class LoginScreen extends StatefulWidget {
 }
 
 class _LoginScreenState extends State<LoginScreen> {
-  // [ALL YOUR EXISTING CODE REMAINS UNCHANGED]
   final _formKey = GlobalKey<FormState>();
-  final _phoneEmailController = TextEditingController();
+  final _emailController = TextEditingController();
   final _passwordController = TextEditingController();
+  final _phoneController = TextEditingController();
+  final _otpController = TextEditingController();
+
   bool _obscurePassword = true;
-
-  @override
-  void dispose() {
-    _phoneEmailController.dispose();
-    _passwordController.dispose();
-    super.dispose();
-  }
-
-  bool _validateInput(String input) {
-    return RegExp(r'^[\w-\.]+@([\w-]+\.)+[\w-]{2,4}$').hasMatch(input) ||
-        RegExp(r'^[+]?[0-9]{10,13}$').hasMatch(input);
-  }
+  bool isEmailSelected = true;
+  bool showOtpField = false;
+  bool isVerifying = false;
+  String? _verificationId;
 
   void _togglePasswordVisibility() {
     setState(() {
@@ -38,37 +34,116 @@ class _LoginScreenState extends State<LoginScreen> {
       SnackBar(
         content: Text(message),
         backgroundColor: Colors.red,
-        behavior: SnackBarBehavior.floating,
-        shape: RoundedRectangleBorder(
-          borderRadius: BorderRadius.circular(10),
-        ),
       ),
     );
   }
 
-  void _handleLogin() {
-    if (!_formKey.currentState!.validate()) return;
-    final input = _phoneEmailController.text.trim();
-    if (!_validateInput(input)) {
-      _showError('Please enter a valid email or phone number');
+  void _sendOtp() async {
+    final phone = _phoneController.text.trim();
+
+    if (!RegExp(r'^\+?[0-9]{10,13}$').hasMatch(phone)) {
+      _showError("Invalid phone number");
       return;
     }
-    // Your existing login logic
+
+    setState(() => isVerifying = true);
+
+    try {
+      await FirebaseAuth.instance.verifyPhoneNumber(
+        phoneNumber: phone,
+        timeout: const Duration(seconds: 60),
+        verificationCompleted: (PhoneAuthCredential credential) async {
+          await FirebaseAuth.instance.signInWithCredential(credential);
+          _navigateToHome();
+        },
+        verificationFailed: (FirebaseAuthException e) {
+          _showError("Verification failed: ${e.message}");
+        },
+        codeSent: (String verificationId, int? resendToken) {
+          setState(() {
+            _verificationId = verificationId;
+            showOtpField = true;
+          });
+        },
+        codeAutoRetrievalTimeout: (String verificationId) {
+          _verificationId = verificationId;
+        },
+      );
+    } catch (e) {
+      _showError("OTP send failed: $e");
+    } finally {
+      setState(() => isVerifying = false);
+    }
+  }
+
+  void _verifyOtp() async {
+    final otp = _otpController.text.trim();
+    if (_verificationId == null || otp.isEmpty) {
+      _showError("Please enter OTP");
+      return;
+    }
+
+    try {
+      final credential = PhoneAuthProvider.credential(
+        verificationId: _verificationId!,
+        smsCode: otp,
+      );
+      await FirebaseAuth.instance.signInWithCredential(credential);
+      _navigateToHome();
+    } catch (e) {
+      _showError("Invalid OTP");
+    }
+  }
+
+  void _emailLogin() async {
+    final email = _emailController.text.trim();
+    final password = _passwordController.text.trim();
+
+    if (email.isEmpty || password.length < 6) {
+      _showError("Please enter valid credentials");
+      return;
+    }
+
+    try {
+      await FirebaseAuth.instance.signInWithEmailAndPassword(
+        email: email,
+        password: password,
+      );
+      _navigateToHome();
+    } on FirebaseAuthException catch (e) {
+      _showError(e.message ?? "Login failed");
+    }
+  }
+
+  void _navigateToHome() {
+    Navigator.pushReplacement(
+      context,
+      MaterialPageRoute(builder: (_) => const DashboardScreen()),
+    );
+  }
+
+  @override
+  void dispose() {
+    _emailController.dispose();
+    _passwordController.dispose();
+    _phoneController.dispose();
+    _otpController.dispose();
+    super.dispose();
   }
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: Colors.transparent, // CHANGE 1: Made transparent
+      backgroundColor: Colors.transparent,
       appBar: AppBar(
-        backgroundColor: Colors.transparent, // Kept transparent
+        backgroundColor: Colors.transparent,
         elevation: 0,
         leading: IconButton(
           icon: const Icon(Icons.arrow_back, color: Colors.white),
           onPressed: () => Navigator.pop(context),
         ),
       ),
-      body: Container( // CHANGE 2: Added gradient container
+      body: Container(
         decoration: const BoxDecoration(
           gradient: LinearGradient(
             colors: [Color(0xFF000000), Color(0xFF343434)],
@@ -83,16 +158,13 @@ class _LoginScreenState extends State<LoginScreen> {
               child: Form(
                 key: _formKey,
                 child: Column(
-                  mainAxisAlignment: MainAxisAlignment.center,
                   children: [
-                    // [ALL YOUR EXISTING WIDGETS REMAIN UNCHANGED]
                     Image.asset(
                       'assets/images/logo.png',
                       width: 150,
                       height: 150,
-                      errorBuilder: (_, __, ___) => const Icon(Icons.chat,
-                          size: 100,
-                          color: Colors.white),
+                      errorBuilder: (_, __, ___) =>
+                      const Icon(Icons.chat, size: 100, color: Colors.white),
                     ),
                     const SizedBox(height: 20),
                     Text(
@@ -100,100 +172,156 @@ class _LoginScreenState extends State<LoginScreen> {
                       style: Theme.of(context).textTheme.headlineMedium?.copyWith(
                         fontWeight: FontWeight.bold,
                         color: Colors.white,
-                      ) ?? const TextStyle(
-                        fontSize: 24,
-                        fontWeight: FontWeight.bold,
-                        color: Colors.white,
-                      ),
+                      ) ??
+                          const TextStyle(
+                              fontSize: 24,
+                              fontWeight: FontWeight.bold,
+                              color: Colors.white),
                     ),
                     const SizedBox(height: 30),
-                    TextFormField(
-                      controller: _phoneEmailController,
-                      keyboardType: TextInputType.emailAddress,
-                      decoration: const InputDecoration(
-                        labelText: 'Email or Phone',
-                        hintText: 'example@mail.com or +1234567890',
-                        labelStyle: TextStyle(color: Colors.white),
-                        hintStyle: TextStyle(color: Colors.white54),
-                        enabledBorder: OutlineInputBorder(
-                          borderSide: BorderSide(color: Colors.white),
+
+                    // Toggle
+                    Row(
+                      mainAxisAlignment: MainAxisAlignment.center,
+                      children: [
+                        ChoiceChip(
+                          label: const Text('Email'),
+                          selected: isEmailSelected,
+                          onSelected: (_) => setState(() {
+                            isEmailSelected = true;
+                            showOtpField = false;
+                          }),
                         ),
-                        focusedBorder: OutlineInputBorder(
-                          borderSide: BorderSide(color: Colors.white),
+                        const SizedBox(width: 10),
+                        ChoiceChip(
+                          label: const Text('Phone'),
+                          selected: !isEmailSelected,
+                          onSelected: (_) => setState(() {
+                            isEmailSelected = false;
+                            showOtpField = false;
+                          }),
                         ),
-                      ),
-                      style: const TextStyle(color: Colors.white),
-                      validator: (value) {
-                        if (value == null || value.isEmpty) {
-                          return 'Please enter your email or phone';
-                        }
-                        return null;
-                      },
+                      ],
                     ),
+
                     const SizedBox(height: 20),
-                    TextFormField(
-                      controller: _passwordController,
-                      obscureText: _obscurePassword,
-                      decoration: InputDecoration(
-                        labelText: 'Password',
-                        labelStyle: const TextStyle(color: Colors.white),
-                        enabledBorder: const OutlineInputBorder(
-                          borderSide: BorderSide(color: Colors.white),
-                        ),
-                        focusedBorder: const OutlineInputBorder(
-                          borderSide: BorderSide(color: Colors.white),
-                        ),
-                        suffixIcon: IconButton(
-                          icon: Icon(
-                            _obscurePassword
-                                ? Icons.visibility_off
-                                : Icons.visibility,
-                            color: Colors.white70,
+
+                    // Email/Phone fields
+                    if (isEmailSelected) ...[
+                      TextFormField(
+                        controller: _emailController,
+                        decoration: const InputDecoration(
+                          labelText: 'Email',
+                          labelStyle: TextStyle(color: Colors.white),
+                          enabledBorder: OutlineInputBorder(
+                            borderSide: BorderSide(color: Colors.white),
                           ),
-                          onPressed: _togglePasswordVisibility,
+                          focusedBorder: OutlineInputBorder(
+                            borderSide: BorderSide(color: Colors.white),
+                          ),
                         ),
+                        style: const TextStyle(color: Colors.white),
                       ),
-                      style: const TextStyle(color: Colors.white),
-                      validator: (value) {
-                        if (value == null || value.isEmpty) {
-                          return 'Please enter your password';
-                        }
-                        if (value.length < 6) {
-                          return 'Password must be at least 6 characters';
-                        }
-                        return null;
-                      },
-                    ),
+                      const SizedBox(height: 20),
+                      TextFormField(
+                        controller: _passwordController,
+                        obscureText: _obscurePassword,
+                        decoration: InputDecoration(
+                          labelText: 'Password',
+                          labelStyle: const TextStyle(color: Colors.white),
+                          suffixIcon: IconButton(
+                            icon: Icon(
+                              _obscurePassword
+                                  ? Icons.visibility_off
+                                  : Icons.visibility,
+                              color: Colors.white70,
+                            ),
+                            onPressed: _togglePasswordVisibility,
+                          ),
+                          enabledBorder: const OutlineInputBorder(
+                            borderSide: BorderSide(color: Colors.white),
+                          ),
+                          focusedBorder: const OutlineInputBorder(
+                            borderSide: BorderSide(color: Colors.white),
+                          ),
+                        ),
+                        style: const TextStyle(color: Colors.white),
+                      ),
+                    ] else ...[
+                      TextFormField(
+                        controller: _phoneController,
+                        keyboardType: TextInputType.phone,
+                        decoration: const InputDecoration(
+                          labelText: 'Phone Number',
+                          hintText: '+8801XXXXXXX',
+                          labelStyle: TextStyle(color: Colors.white),
+                          hintStyle: TextStyle(color: Colors.white54),
+                          enabledBorder: OutlineInputBorder(
+                            borderSide: BorderSide(color: Colors.white),
+                          ),
+                          focusedBorder: OutlineInputBorder(
+                            borderSide: BorderSide(color: Colors.white),
+                          ),
+                        ),
+                        style: const TextStyle(color: Colors.white),
+                      ),
+                      const SizedBox(height: 10),
+                      if (!showOtpField)
+                        TextButton(
+                          onPressed: isVerifying ? null : _sendOtp,
+                          child: const Text("Send OTP", style: TextStyle(color: Colors.lightBlueAccent)),
+                        ),
+                      if (showOtpField) ...[
+                        const SizedBox(height: 20),
+                        TextField(
+                          controller: _otpController,
+                          keyboardType: TextInputType.number,
+                          decoration: const InputDecoration(
+                            labelText: "Enter OTP",
+                            labelStyle: TextStyle(color: Colors.white),
+                            enabledBorder: OutlineInputBorder(
+                              borderSide: BorderSide(color: Colors.white),
+                            ),
+                            focusedBorder: OutlineInputBorder(
+                              borderSide: BorderSide(color: Colors.white),
+                            ),
+                          ),
+                          style: const TextStyle(color: Colors.white),
+                        ),
+                      ]
+                    ],
+
                     const SizedBox(height: 30),
                     ElevatedButton(
-                      onPressed: _handleLogin,
+                      onPressed: () {
+                        if (isEmailSelected) {
+                          _emailLogin();
+                        } else if (showOtpField) {
+                          _verifyOtp();
+                        } else {
+                          _sendOtp();
+                        }
+                      },
                       style: ElevatedButton.styleFrom(
-                        padding: const EdgeInsets.symmetric(
-                            horizontal: 120, vertical: 18),
+                        padding: const EdgeInsets.symmetric(horizontal: 120, vertical: 18),
                         backgroundColor: const Color(0xFF81D8D0),
                         shape: RoundedRectangleBorder(
                           borderRadius: BorderRadius.circular(8),
                         ),
                       ),
-                      child: const Text( // CHANGE 3: Removed manual white color
-                        'LOGIN',
-                        style: TextStyle(fontSize: 18), // Now uses theme's black
-                      ),
+                      child: const Text("LOGIN", style: TextStyle(fontSize: 18)),
                     ),
+
                     const SizedBox(height: 20),
                     TextButton(
                       onPressed: () {
                         Navigator.push(
                           context,
-                          MaterialPageRoute(
-                            builder: (context) => const SignupScreen(),
-                          ),
+                          MaterialPageRoute(builder: (_) => const SignupScreen()),
                         );
                       },
-                      child: const Text(
-                        'Don\'t have an account? Sign Up',
-                        style: TextStyle(color: Colors.white),
-                      ),
+                      child: const Text("Don't have an account? Sign Up",
+                          style: TextStyle(color: Colors.white)),
                     ),
                   ],
                 ),
