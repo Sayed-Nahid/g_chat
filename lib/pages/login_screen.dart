@@ -2,6 +2,8 @@ import 'package:flutter/material.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:g_chat/pages/dashboard_screen.dart';
 import 'package:g_chat/pages/signup_screen.dart';
+import 'package:intl_phone_field/intl_phone_field.dart';
+
 
 class LoginScreen extends StatefulWidget {
   const LoginScreen({super.key});
@@ -131,6 +133,8 @@ class _LoginScreenState extends State<LoginScreen> {
     super.dispose();
   }
 
+// Replace your build() method with this:
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -140,7 +144,7 @@ class _LoginScreenState extends State<LoginScreen> {
         elevation: 0,
         leading: IconButton(
           icon: const Icon(Icons.arrow_back, color: Colors.white),
-          onPressed: () => Navigator.pop(context),
+          onPressed: () => Navigator.of(context).pop(),
         ),
       ),
       body: Container(
@@ -168,56 +172,38 @@ class _LoginScreenState extends State<LoginScreen> {
                     ),
                     const SizedBox(height: 20),
                     Text(
-                      'Welcome Back!',
-                      style: Theme.of(context).textTheme.headlineMedium?.copyWith(
+                      'Login to G Chat',
+                      style: Theme
+                          .of(context)
+                          .textTheme
+                          .headlineMedium
+                          ?.copyWith(
                         fontWeight: FontWeight.bold,
                         color: Colors.white,
                       ) ??
-                          const TextStyle(
-                              fontSize: 24,
+                          const TextStyle(fontSize: 24,
                               fontWeight: FontWeight.bold,
                               color: Colors.white),
                     ),
                     const SizedBox(height: 30),
 
-                    // Toggle
-                    Row(
-                      mainAxisAlignment: MainAxisAlignment.center,
-                      children: [
-                        ChoiceChip(
-                          label: const Text('Email'),
-                          selected: isEmailSelected,
-                          onSelected: (_) => setState(() {
-                            isEmailSelected = true;
-                            showOtpField = false;
-                          }),
-                        ),
-                        const SizedBox(width: 10),
-                        ChoiceChip(
-                          label: const Text('Phone'),
-                          selected: !isEmailSelected,
-                          onSelected: (_) => setState(() {
-                            isEmailSelected = false;
-                            showOtpField = false;
-                          }),
-                        ),
-                      ],
-                    ),
-
-                    const SizedBox(height: 20),
-
-                    // Email/Phone fields
+                    // Fields
                     if (isEmailSelected) ...[
                       TextFormField(
                         controller: _emailController,
-                        decoration: const InputDecoration(
-                          labelText: 'Email',
-                          labelStyle: TextStyle(color: Colors.white),
+                        keyboardType: TextInputType.emailAddress,
+                        decoration: InputDecoration(
+                          labelText: 'Email Address',
+                          labelStyle: const TextStyle(color: Colors.white),
+                          hintText: 'example@mail.com',
+                          hintStyle: const TextStyle(color: Colors.white54),
                           enabledBorder: OutlineInputBorder(
-                            borderSide: BorderSide(color: Colors.white),
+                            borderRadius: BorderRadius.circular(8),
+                            borderSide: const BorderSide(color: Colors.white),
                           ),
                           focusedBorder: OutlineInputBorder(
-                            borderSide: BorderSide(color: Colors.white),
+                            borderRadius: BorderRadius.circular(8),
+                            borderSide: const BorderSide(color: Colors.white),
                           ),
                         ),
                         style: const TextStyle(color: Colors.white),
@@ -229,69 +215,112 @@ class _LoginScreenState extends State<LoginScreen> {
                         decoration: InputDecoration(
                           labelText: 'Password',
                           labelStyle: const TextStyle(color: Colors.white),
+                          hintStyle: const TextStyle(color: Colors.white54),
                           suffixIcon: IconButton(
                             icon: Icon(
-                              _obscurePassword
-                                  ? Icons.visibility_off
-                                  : Icons.visibility,
+                              _obscurePassword ? Icons.visibility_off : Icons
+                                  .visibility,
                               color: Colors.white70,
                             ),
                             onPressed: _togglePasswordVisibility,
                           ),
-                          enabledBorder: const OutlineInputBorder(
-                            borderSide: BorderSide(color: Colors.white),
-                          ),
-                          focusedBorder: const OutlineInputBorder(
-                            borderSide: BorderSide(color: Colors.white),
-                          ),
-                        ),
-                        style: const TextStyle(color: Colors.white),
-                      ),
-                    ] else ...[
-                      TextFormField(
-                        controller: _phoneController,
-                        keyboardType: TextInputType.phone,
-                        decoration: const InputDecoration(
-                          labelText: 'Phone Number',
-                          hintText: '+8801XXXXXXX',
-                          labelStyle: TextStyle(color: Colors.white),
-                          hintStyle: TextStyle(color: Colors.white54),
                           enabledBorder: OutlineInputBorder(
-                            borderSide: BorderSide(color: Colors.white),
+                            borderRadius: BorderRadius.circular(8),
+                            borderSide: const BorderSide(color: Colors.white),
                           ),
                           focusedBorder: OutlineInputBorder(
-                            borderSide: BorderSide(color: Colors.white),
+                            borderRadius: BorderRadius.circular(8),
+                            borderSide: const BorderSide(color: Colors.white),
                           ),
                         ),
                         style: const TextStyle(color: Colors.white),
                       ),
-                      const SizedBox(height: 10),
-                      if (!showOtpField)
-                        TextButton(
-                          onPressed: isVerifying ? null : _sendOtp,
-                          child: const Text("Send OTP", style: TextStyle(color: Colors.lightBlueAccent)),
-                        ),
-                      if (showOtpField) ...[
-                        const SizedBox(height: 20),
-                        TextField(
-                          controller: _otpController,
-                          keyboardType: TextInputType.number,
-                          decoration: const InputDecoration(
-                            labelText: "Enter OTP",
-                            labelStyle: TextStyle(color: Colors.white),
+                    ] else
+                      ...[
+                        IntlPhoneField(
+                          decoration: InputDecoration(
+                            labelText: 'Phone Number',
+                            labelStyle: const TextStyle(color: Colors.white),
+                            hintText: '1XXXXXXXXX',
+                            hintStyle: const TextStyle(color: Colors.white54),
                             enabledBorder: OutlineInputBorder(
-                              borderSide: BorderSide(color: Colors.white),
+                              borderSide: const BorderSide(color: Colors.white),
+                              borderRadius: BorderRadius.circular(8),
                             ),
                             focusedBorder: OutlineInputBorder(
-                              borderSide: BorderSide(color: Colors.white),
+                              borderSide: const BorderSide(color: Colors.white),
+                              borderRadius: BorderRadius.circular(8),
+                            ),
+                            floatingLabelBehavior: FloatingLabelBehavior.never,
+                          ),
+                          initialCountryCode: 'BD', // default to Bangladesh
+                          dropdownIcon: const Icon(Icons.arrow_drop_down, color: Colors.white),
+                          style: const TextStyle(color: Colors.white),
+                          onChanged: (phone) {
+                            _phoneController.text = phone.completeNumber; // +8801XXXXXXX
+                          },
+                        ),
+
+                        if (!showOtpField)
+                          Align(
+                            alignment: Alignment.centerRight,
+                            child: TextButton(
+                              onPressed: isVerifying ? null : _sendOtp,
+                              child: const Text('Send', style: TextStyle(
+                                  color: Colors.lightBlueAccent)),
                             ),
                           ),
-                          style: const TextStyle(color: Colors.white),
-                        ),
-                      ]
-                    ],
+                        if (showOtpField)
+                          Padding(
+                            padding: const EdgeInsets.only(top: 20),
+                            child: TextFormField(
+                              controller: _otpController,
+                              keyboardType: TextInputType.number,
+                              decoration: InputDecoration(
+                                labelText: 'OTP Code',
+                                labelStyle: const TextStyle(
+                                    color: Colors.white),
+                                enabledBorder: OutlineInputBorder(
+                                  borderRadius: BorderRadius.circular(8),
+                                  borderSide: const BorderSide(
+                                      color: Colors.white),
+                                ),
+                                focusedBorder: OutlineInputBorder(
+                                  borderRadius: BorderRadius.circular(8),
+                                  borderSide: const BorderSide(
+                                      color: Colors.white),
+                                ),
+                              ),
+                              style: const TextStyle(color: Colors.white),
+                            ),
+                          ),
+                      ],
 
-                    const SizedBox(height: 30),
+                    const SizedBox(height: 20),
+
+                    // 🔁 Toggle Email/Phone (centered)
+                    TextButton(
+                      onPressed: () {
+                        setState(() {
+                          isEmailSelected = !isEmailSelected;
+                          _emailController.clear();
+                          _passwordController.clear();
+                          _phoneController.clear();
+                          _otpController.clear();
+                          showOtpField = false;
+                        });
+                      },
+                      child: Text(
+                        isEmailSelected
+                            ? 'Use Phone Number Instead'
+                            : 'Use Email Instead',
+                        style: const TextStyle(color: Colors.white70),
+                      ),
+                    ),
+
+                    const SizedBox(height: 10),
+
+                    // 🔐 Login Button
                     ElevatedButton(
                       onPressed: () {
                         if (isEmailSelected) {
@@ -303,13 +332,15 @@ class _LoginScreenState extends State<LoginScreen> {
                         }
                       },
                       style: ElevatedButton.styleFrom(
-                        padding: const EdgeInsets.symmetric(horizontal: 120, vertical: 18),
+                        padding: const EdgeInsets.symmetric(
+                            horizontal: 120, vertical: 18),
                         backgroundColor: const Color(0xFF81D8D0),
                         shape: RoundedRectangleBorder(
                           borderRadius: BorderRadius.circular(8),
                         ),
                       ),
-                      child: const Text("LOGIN", style: TextStyle(fontSize: 18)),
+                      child: const Text(
+                          'LOGIN', style: TextStyle(fontSize: 18)),
                     ),
 
                     const SizedBox(height: 20),
@@ -317,11 +348,14 @@ class _LoginScreenState extends State<LoginScreen> {
                       onPressed: () {
                         Navigator.push(
                           context,
-                          MaterialPageRoute(builder: (_) => const SignupScreen()),
+                          MaterialPageRoute(
+                              builder: (_) => const SignupScreen()),
                         );
                       },
-                      child: const Text("Don't have an account? Sign Up",
-                          style: TextStyle(color: Colors.white)),
+                      child: const Text(
+                        'Don\'t have an account? Sign Up',
+                        style: TextStyle(color: Colors.white),
+                      ),
                     ),
                   ],
                 ),
