@@ -4,6 +4,8 @@ import 'package:g_chat/pages/dashboard_screen.dart';
 import 'package:g_chat/pages/signup_screen.dart';
 import 'package:intl_phone_field/intl_phone_field.dart';
 
+import 'forgot_password_screen.dart';
+
 
 class LoginScreen extends StatefulWidget {
   const LoginScreen({super.key});
@@ -172,7 +174,7 @@ class _LoginScreenState extends State<LoginScreen> {
                     ),
                     const SizedBox(height: 20),
                     Text(
-                      'Login to G Chat',
+                      'Welcome Back!',
                       style: Theme
                           .of(context)
                           .textTheme
@@ -235,6 +237,40 @@ class _LoginScreenState extends State<LoginScreen> {
                         ),
                         style: const TextStyle(color: Colors.white),
                       ),
+                      Column(
+                        crossAxisAlignment: CrossAxisAlignment.start, // Align everything to the left
+                        children: [
+                          // Your Email and Password fields go here...
+
+                          const SizedBox(height: 0),
+
+                          // Forgot Password Text
+                          Container(
+                            alignment: Alignment.centerLeft,  // Make sure the text is left-aligned
+                            child: TextButton(
+                              onPressed: () {
+                                // Navigate to Forgot Password screen
+                                Navigator.push(
+                                  context,
+                                  MaterialPageRoute(builder: (_) => const ForgotPasswordScreen()),
+                                );
+                              },
+                              child: const Text(
+                                'Forgot Password?',
+                                style: TextStyle(
+                                  color: Colors.white70,
+                                  fontSize: 14,  // Font size for the text
+                                  fontWeight: FontWeight.normal,
+                                ),
+                              ),
+                              style: TextButton.styleFrom(
+                                padding: EdgeInsets.zero,  // Remove any extra padding
+                              ),
+                            ),
+                          ),
+                        ],
+                      )
+
                     ] else
                       ...[
                         IntlPhoneField(
