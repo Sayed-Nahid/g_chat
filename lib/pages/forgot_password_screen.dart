@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:firebase_auth/firebase_auth.dart';
+import 'login_screen.dart'; // Replace with your actual LoginScreen import
 
 class ForgotPasswordScreen extends StatefulWidget {
   const ForgotPasswordScreen({super.key});
@@ -12,9 +13,24 @@ class _ForgotPasswordScreenState extends State<ForgotPasswordScreen> {
   final _emailController = TextEditingController();
   String _message = '';
 
+  // Regular expression for validating email
+  bool _isEmailValid(String email) {
+    final emailRegExp = RegExp(r'^[^@]+@[^@]+\.[^@]+');
+    return emailRegExp.hasMatch(email);
+  }
+
   Future<void> _sendPasswordResetEmail() async {
     final email = _emailController.text.trim();
+
+    // Email validation
     if (email.isEmpty) {
+      setState(() {
+        _message = 'Please enter an email address';
+      });
+      return;
+    }
+
+    if (!_isEmailValid(email)) {
       setState(() {
         _message = 'Please enter a valid email address';
       });
@@ -23,13 +39,28 @@ class _ForgotPasswordScreenState extends State<ForgotPasswordScreen> {
 
     try {
       await FirebaseAuth.instance.sendPasswordResetEmail(email: email);
-      setState(() {
-        _message = 'Password reset email sent!';
-      });
+
+      // Show snackbar message
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: const Text('Password reset email sent!'),
+          backgroundColor: Colors.green,
+        ),
+      );
+
+      // Navigate to LoginScreen after successful email sending
+      Navigator.pushReplacement(
+        context,
+        MaterialPageRoute(builder: (context) => const LoginScreen()), // Adjust with your LoginScreen widget
+      );
     } on FirebaseAuthException catch (e) {
       setState(() {
         _message = 'Error: ${e.message}';
       });
+      // Show snackbar message for error
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('Error: ${e.message}')),
+      );
     }
   }
 
@@ -71,7 +102,7 @@ class _ForgotPasswordScreenState extends State<ForgotPasswordScreen> {
 
                   // Title Text
                   Text(
-                    'Forgot Password',
+                    'Reset Password',
                     style: Theme.of(context).textTheme.headlineMedium?.copyWith(
                       fontWeight: FontWeight.bold,
                       color: Colors.white,
@@ -127,7 +158,7 @@ class _ForgotPasswordScreenState extends State<ForgotPasswordScreen> {
                   // Success or Error Message
                   Text(
                     _message,
-                    style: const TextStyle(color: Colors.white70),
+                    style: const TextStyle(color: Colors.red),
                   ),
                 ],
               ),
