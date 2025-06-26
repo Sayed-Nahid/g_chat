@@ -1,9 +1,9 @@
 import 'package:flutter/material.dart';
 import 'package:firebase_auth/firebase_auth.dart';
-import 'package:g_chat/pages/login_screen.dart';
 import 'package:g_chat/pages/profile_set_screen.dart';
 import 'package:g_chat/pages/email_verification_waiting_screen.dart';
-import 'package:g_chat/pages/set_password_screen.dart'; // ✅ new screen
+
+import 'login_screen.dart'; // Navigate to this screen after sign-up
 
 class SignupScreen extends StatefulWidget {
   const SignupScreen({Key? key}) : super(key: key);
@@ -174,7 +174,7 @@ class _SignupScreenState extends State<SignupScreen> {
       }
     } else {
       final email = input;
-      final password = 'defaultPass123'; // Replace with real password later
+      final password = 'defaultPass123'; // Temporary password for new users
 
       try {
         final credential = await FirebaseAuth.instance.createUserWithEmailAndPassword(
