@@ -3,6 +3,9 @@ import 'package:image_picker/image_picker.dart';
 import 'package:image_cropper/image_cropper.dart';
 import 'package:g_chat/pages/dashboard_screen.dart';
 import 'dart:io';
+import 'package:firebase_storage/firebase_storage.dart';
+import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:firebase_auth/firebase_auth.dart';  // Ensure FirebaseAuth is imported
 
 class ProfileSetScreen extends StatefulWidget {
   const ProfileSetScreen({Key? key}) : super(key: key);
@@ -12,7 +15,6 @@ class ProfileSetScreen extends StatefulWidget {
 }
 
 class _ProfileSetScreenState extends State<ProfileSetScreen> {
-  // Constants
   static const _primaryColor = Color(0xFF81D8D0);
   static const _gradientColors = [Color(0xFF000000), Color(0xFF343434)];
   static const _textColor = Colors.white;
@@ -21,7 +23,6 @@ class _ProfileSetScreenState extends State<ProfileSetScreen> {
   static const _cameraIconSize = 20.0;
   static const _maxImageSize = 10 * 1024 * 1024; // 5MB in bytes
 
-  // State variables
   File? _imageFile;
   final ImagePicker _picker = ImagePicker();
   final TextEditingController _firstNameController = TextEditingController();
@@ -35,10 +36,59 @@ class _ProfileSetScreenState extends State<ProfileSetScreen> {
     super.dispose();
   }
 
+  // Upload Profile Image to Firebase Storage
+  Future<String?> uploadProfileImage(File imageFile) async {
+    try {
+      final storageRef = FirebaseStorage.instance.ref();
+      final profileImagesRef = storageRef.child('profile_images/${DateTime.now().millisecondsSinceEpoch}.jpg');
+
+      final uploadTask = profileImagesRef.putFile(imageFile);
+      final snapshot = await uploadTask.whenComplete(() {});
+
+      if (snapshot.state == TaskState.success) {
+        final imageUrl = await snapshot.ref.getDownloadURL();
+        print("Image uploaded successfully: $imageUrl");
+        return imageUrl;
+      } else {
+        print("Error uploading image: ${snapshot.state}");
+      }
+
+    } catch (e) {
+      print("Error uploading image: $e");
+      return null;
+    }
+  }
+
+  // Save Profile Data in Firestore
+  Future<void> saveUserProfile(String firstName, String lastName, String imageUrl) async {
+    try {
+      // Get the current authenticated user's UID
+      final userId = FirebaseAuth.instance.currentUser?.uid;
+      if (userId == null) {
+        print("User is not authenticated.");
+        return;
+      }
+
+      // Save profile data to Firestore under 'users' collection using user UID as document ID
+      final userRef = FirebaseFirestore.instance.collection('users').doc(userId);
+
+      await userRef.set({
+        'first_name': firstName,
+        'last_name': lastName,
+        'profile_image': imageUrl,
+        'created_at': FieldValue.serverTimestamp(),
+      });
+
+      print("User profile saved successfully!");
+    } catch (e) {
+      print("Error saving user data: $e");
+    }
+  }
+
+  // Crop Image
   Future<File?> _cropImage(XFile pickedFile) async {
     try {
       setState(() => _isProcessingImage = true);
-
       final croppedFile = await ImageCropper().cropImage(
         sourcePath: pickedFile.path,
         aspectRatio: const CropAspectRatio(ratioX: 1, ratioY: 1),
@@ -85,12 +135,12 @@ class _ProfileSetScreenState extends State<ProfileSetScreen> {
     }
   }
 
+  // Process Image Selection (Gallery/Camera)
   Future<void> _processImage(ImageSource source) async {
     try {
       final pickedFile = await _picker.pickImage(source: source);
       if (pickedFile == null) return;
 
-      // Check file size
       final fileSize = await pickedFile.length();
       if (fileSize > _maxImageSize) {
         if (mounted) {
@@ -120,6 +170,7 @@ class _ProfileSetScreenState extends State<ProfileSetScreen> {
     }
   }
 
+  // Open Image Picker (Gallery/Camera)
   Future<void> _pickImage() async {
     if (_isProcessingImage) return;
 
@@ -162,7 +213,8 @@ class _ProfileSetScreenState extends State<ProfileSetScreen> {
     );
   }
 
-  void _validateAndSubmit() {
+  // Validate and Submit Profile Data
+  void _validateAndSubmit() async {
     if (_firstNameController.text.isEmpty) {
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(
@@ -193,12 +245,26 @@ class _ProfileSetScreenState extends State<ProfileSetScreen> {
       return;
     }
 
-    // TODO: Implement profile submission logic
-    // Navigator.push(...);
-    Navigator.pushReplacement(
-      context,
-      MaterialPageRoute(builder: (context) => const DashboardScreen()),
-    );
+    // Upload profile image to Firebase Storage
+    String? imageUrl = await uploadProfileImage(_imageFile!);
+
+    if (imageUrl != null) {
+      // Save user profile data in Firestore
+      await saveUserProfile(_firstNameController.text, _lastNameController.text, imageUrl);
+
+      // Redirect to dashboard
+      Navigator.pushReplacement(
+        context,
+        MaterialPageRoute(builder: (context) => const DashboardScreen()),
+      );
+    } else {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Error uploading profile picture'),
+          backgroundColor: Colors.red,
+        ),
+      );
+    }
   }
 
   Widget _buildProfileImage() {
