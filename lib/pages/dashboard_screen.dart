@@ -1,7 +1,9 @@
 import 'package:flutter/material.dart';
 import 'package:cloud_firestore/cloud_firestore.dart'; // Import Firestore
 import 'package:firebase_auth/firebase_auth.dart'; // Import Firebase Auth
+import 'package:shared_preferences/shared_preferences.dart';
 import 'chat_details_page.dart'; // Import your chat detail page
+import 'package:g_chat/pages/welcome_screen.dart';
 
 class DashboardScreen extends StatefulWidget {
   const DashboardScreen({Key? key}) : super(key: key);
@@ -281,10 +283,49 @@ class ProfilePage extends StatelessWidget {
 class SettingsPage extends StatelessWidget {
   const SettingsPage({Key? key}) : super(key: key);
 
+  // Logout function (same as your reference)
+  Future<void> _logout(BuildContext context) async {
+    await FirebaseAuth.instance.signOut(); // Firebase logout
+
+    // Optional: Clear session data (if using SharedPreferences)
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.remove('userId');
+
+    // Redirect to WelcomeScreen and clear navigation stack
+    Navigator.pushReplacement(
+      context,
+      MaterialPageRoute(builder: (context) => const WelcomeScreen()),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
-    return const Center(
-      child: Text("Settings Page", style: TextStyle(color: Colors.white)),
+    return Center(
+      child: Column(
+        mainAxisAlignment: MainAxisAlignment.center,
+        children: [
+          const Text(
+            "Settings",
+            style: TextStyle(color: Colors.white, fontSize: 24),
+          ),
+          const SizedBox(height: 30),
+          // Logout Button
+          ElevatedButton(
+            onPressed: () => _logout(context),
+            style: ElevatedButton.styleFrom(
+              backgroundColor: Colors.red[800], // Red for logout action
+              padding: const EdgeInsets.symmetric(horizontal: 40, vertical: 15),
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(8),
+              ),
+            ),
+            child: const Text(
+              'Logout',
+              style: TextStyle(color: Colors.white, fontSize: 18),
+            ),
+          ),
+        ],
+      ),
     );
   }
 }
