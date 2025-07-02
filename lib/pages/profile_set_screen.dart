@@ -255,7 +255,7 @@ class _ProfileSetScreenState extends State<ProfileSetScreen> {
       // Redirect to dashboard
       Navigator.pushReplacement(
         context,
-        MaterialPageRoute(builder: (context) => const DashboardScreen()),
+        MaterialPageRoute(builder: (context) => DashboardScreen()),
       );
     } else {
       ScaffoldMessenger.of(context).showSnackBar(

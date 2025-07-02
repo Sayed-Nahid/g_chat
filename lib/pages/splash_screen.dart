@@ -31,7 +31,7 @@ class _SplashScreenState extends State<SplashScreen> {
       if (!mounted) return;
       Navigator.pushReplacement(
         context,
-        MaterialPageRoute(builder: (context) => const DashboardScreen()),
+        MaterialPageRoute(builder: (context) => DashboardScreen()),
       );
     } else {
       // If no user is logged in, navigate to the WelcomeScreen or LoginScreen
