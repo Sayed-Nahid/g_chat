@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
-
-import 'chat_details_page.dart';
+import 'package:cloud_firestore/cloud_firestore.dart'; // Import Firestore
+import 'package:firebase_auth/firebase_auth.dart'; // Import Firebase Auth
+import 'chat_details_page.dart'; // Import your chat detail page
 
 class DashboardScreen extends StatefulWidget {
   const DashboardScreen({Key? key}) : super(key: key);
@@ -16,7 +17,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
   int _currentIndex = 0;
 
   final List<Widget> _pages = [
-    const ChatListPage(),
+    const ChatListPage(), // Chat list page
     const GroupsPage(),
     const ProfilePage(),
     const SettingsPage(),
@@ -166,41 +167,89 @@ class _DashboardScreenState extends State<DashboardScreen> {
 class ChatListPage extends StatelessWidget {
   const ChatListPage({Key? key}) : super(key: key);
 
-  final List<Map<String, String>> dummyChats = const [
-    {"name": "Zaman", "lastMessage": "Hey there!", "time": "9:00 AM"},
-    {"name": "GPT Bot", "lastMessage": "Let’s build your app!", "time": "8:30 AM"},
-    {"name": "John Doe", "lastMessage": "I'll call you later.", "time": "Yesterday"},
-    {"name": "Flutter Dev", "lastMessage": "We are live!", "time": "2 days ago"},
-  ];
+  // Fetch users from Firestore, excluding the current user
+  Future<List<QueryDocumentSnapshot>> fetchUsers() async {
+    final currentUserUid = FirebaseAuth.instance.currentUser?.uid; // Get current user's UID
+
+    if (currentUserUid == null) {
+      throw Exception('User is not authenticated');
+    }
+
+    final collection = FirebaseFirestore.instance.collection('users');
+    final snapshot = await collection.get(); // Fetch all documents in the collection
+
+    // Filter out the current user
+    return snapshot.docs.where((doc) => doc.id != currentUserUid).toList();
+  }
 
   @override
   Widget build(BuildContext context) {
-    return ListView.builder(
-      padding: const EdgeInsets.all(16),
-      itemCount: dummyChats.length,
-      itemBuilder: (context, index) {
-        final chat = dummyChats[index];
-        return Card(
-          color: Colors.grey[900],
-          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-          child: ListTile(
-            leading: const CircleAvatar(
-              backgroundColor: Colors.teal,
-              child: Icon(Icons.person, color: Colors.white),
-            ),
-            title: Text(chat["name"]!, style: const TextStyle(color: Colors.white)),
-            subtitle: Text(chat["lastMessage"]!, style: const TextStyle(color: Colors.white70)),
-            trailing: Text(chat["time"]!, style: const TextStyle(color: Colors.white54, fontSize: 12)),
-            onTap: () {
-              // Navigate to ChatDetailPage with the chat name
-              Navigator.push(
-                context,
-                MaterialPageRoute(
-                  builder: (context) => ChatDetailPage(chatName: chat["name"]!),
+    return FutureBuilder<List<QueryDocumentSnapshot>>(
+      future: fetchUsers(),
+      builder: (context, snapshot) {
+        if (snapshot.connectionState == ConnectionState.waiting) {
+          return const Center(
+            child: CircularProgressIndicator(color: Colors.teal),
+          );
+        }
+
+        if (snapshot.hasError) {
+          return Center(
+            child: Text('Error: ${snapshot.error}', style: const TextStyle(color: Colors.white)),
+          );
+        }
+
+        if (!snapshot.hasData || snapshot.data!.isEmpty) {
+          return const Center(
+            child: Text('No users found', style: TextStyle(color: Colors.white)),
+          );
+        }
+
+        final users = snapshot.data!;
+
+        return ListView.builder(
+          padding: const EdgeInsets.all(16),
+          itemCount: users.length,
+          itemBuilder: (context, index) {
+            final user = users[index];
+            final userData = user.data() as Map<String, dynamic>;
+
+            return Card(
+              color: Colors.grey[900],
+              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+              child: ListTile(
+                leading: CircleAvatar(
+                  backgroundColor: Colors.teal,
+                  backgroundImage: userData['profile_image'] != null
+                      ? NetworkImage(userData['profile_image'])
+                      : null,
+                  child: userData['profile_image'] == null
+                      ? const Icon(Icons.person, color: Colors.white)
+                      : null,
                 ),
-              );
-            },
-          ),
+                title: Text(
+                  '${userData['first_name'] ?? 'Unknown'} ${userData['last_name'] ?? ''}',
+                  style: const TextStyle(color: Colors.white),
+                ),
+                subtitle: Text(
+                  'Tap to chat',
+                  style: const TextStyle(color: Colors.white70),
+                ),
+                onTap: () {
+                  // Navigate to ChatDetailPage with the user's name and UID
+                  Navigator.push(
+                    context,
+                    MaterialPageRoute(
+                      builder: (context) => ChatDetailPage(
+                        chatName: '${userData['first_name']} ${userData['last_name']}',
+                        userId: user.id, // Pass the user's UID to the chat detail page
+                      ),
+                    ),
+                  );
+                },
+              ),
+            );
+          },
         );
       },
     );
