@@ -4,7 +4,7 @@ import 'package:firebase_auth/firebase_auth.dart';
 
 class ChatDetailPage extends StatefulWidget {
   final String chatName;
-  final String userId;
+  final String userId; // Other user's UID
 
   const ChatDetailPage({
     Key? key,
@@ -18,46 +18,80 @@ class ChatDetailPage extends StatefulWidget {
 
 class _ChatDetailPageState extends State<ChatDetailPage> {
   final TextEditingController _messageController = TextEditingController();
-  final List<Map<String, String>> _messages = [];
+  final FirebaseFirestore _firestore = FirebaseFirestore.instance;
+  final User? _currentUser = FirebaseAuth.instance.currentUser;
   Map<String, dynamic>? _userData;
 
   @override
   void initState() {
     super.initState();
     _fetchUserData();
+    _markMessagesAsRead();
   }
 
   Future<void> _fetchUserData() async {
     try {
-      final doc = await FirebaseFirestore.instance
-          .collection('users')
-          .doc(widget.userId)
-          .get();
-
+      final doc = await _firestore.collection('users').doc(widget.userId).get();
       if (doc.exists) {
-        setState(() {
-          _userData = doc.data()!;
-        });
+        setState(() => _userData = doc.data()!);
       }
     } catch (e) {
       print("Error fetching user data: $e");
     }
   }
 
-  void _sendMessage() {
-    if (_messageController.text.isNotEmpty) {
-      setState(() {
-        _messages.add({
-          "text": _messageController.text,
-          "sender": "You",
-          "time": "${TimeOfDay.now().hour}:${TimeOfDay.now().minute}",
-        });
-        _messageController.clear();
-      });
+  String _generateChatId() {
+    final users = [_currentUser!.uid, widget.userId]..sort();
+    return '${users[0]}_${users[1]}';
+  }
+
+  Future<void> _sendMessage() async {
+    if (_messageController.text.isEmpty || _currentUser == null) return;
+
+    final chatId = _generateChatId();
+
+    await _firestore
+        .collection('chats')
+        .doc(chatId)
+        .collection('messages')
+        .add({
+      'text': _messageController.text,
+      'senderId': _currentUser.uid,
+      'receiverId': widget.userId,
+      'timestamp': FieldValue.serverTimestamp(),
+      'isRead': false,
+    });
+
+    await _firestore.collection('chats').doc(chatId).update({
+      'lastMessage': _messageController.text,
+      'lastMessageTime': FieldValue.serverTimestamp(),
+      'lastSenderId': _currentUser.uid,
+    });
+
+    _messageController.clear();
+  }
+
+  Future<void> _markMessagesAsRead() async {
+    final chatId = _generateChatId();
+    final unreadMessages = await _firestore
+        .collection('chats')
+        .doc(chatId)
+        .collection('messages')
+        .where('receiverId', isEqualTo: _currentUser!.uid)
+        .where('isRead', isEqualTo: false)
+        .get();
+
+    for (final doc in unreadMessages.docs) {
+      await doc.reference.update({'isRead': true});
     }
   }
 
-  // New: Function to handle three-dot menu actions
+  String _formatTime(Timestamp timestamp) {
+    final date = timestamp.toDate();
+    return '${date.hour}:${date.minute.toString().padLeft(2, '0')}';
+  }
+
+  // Three-dot menu (fully preserved from your original)
   void _showMoreOptions() {
     showModalBottomSheet(
       context: context,
@@ -100,12 +134,15 @@ class _ChatDetailPageState extends State<ChatDetailPage> {
 
   @override
   Widget build(BuildContext context) {
+    final chatId = _generateChatId();
+
     return Scaffold(
       backgroundColor: const Color(0xFF0C0C0C),
       appBar: AppBar(
         backgroundColor: const Color(0xFF1F1F1F),
         title: Row(
           children: [
+            // Profile Picture (fully preserved)
             CircleAvatar(
               backgroundColor: Colors.teal,
               backgroundImage: _userData?['profile_image'] != null
@@ -116,6 +153,7 @@ class _ChatDetailPageState extends State<ChatDetailPage> {
                   : null,
             ),
             const SizedBox(width: 8),
+            // User Name (fully preserved)
             Flexible(
               child: Text(
                 _userData != null
@@ -127,22 +165,16 @@ class _ChatDetailPageState extends State<ChatDetailPage> {
             ),
           ],
         ),
+        // Call Buttons & Menu (fully preserved)
         actions: [
-          // Video call button
           IconButton(
             icon: const Icon(Icons.videocam, color: Colors.white),
-            onPressed: () {
-              print('Video call with ${_userData?['first_name'] ?? 'User'}');
-            },
+            onPressed: () => print('Video call with ${_userData?['first_name'] ?? 'User'}'),
           ),
-          // Voice call button
           IconButton(
             icon: const Icon(Icons.call, color: Colors.white),
-            onPressed: () {
-              print('Voice call with ${_userData?['first_name'] ?? 'User'}');
-            },
+            onPressed: () => print('Voice call with ${_userData?['first_name'] ?? 'User'}'),
           ),
-          // Three-dot menu
           IconButton(
             icon: const Icon(Icons.more_vert, color: Colors.white),
             onPressed: _showMoreOptions,
@@ -151,45 +183,70 @@ class _ChatDetailPageState extends State<ChatDetailPage> {
       ),
       body: Column(
         children: [
+          // Real-time Messages
           Expanded(
-            child: ListView.builder(
-              padding: const EdgeInsets.all(16),
-              reverse: true,
-              itemCount: _messages.length,
-              itemBuilder: (context, index) {
-                final message = _messages[index];
-                final isMe = message["sender"] == "You";
-                return Align(
-                  alignment: isMe ? Alignment.centerRight : Alignment.centerLeft,
-                  child: Container(
-                    margin: const EdgeInsets.only(bottom: 8),
-                    padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
-                    decoration: BoxDecoration(
-                      color: isMe ? const Color(0xFF005C4B) : const Color(0xFF1F2C33),
-                      borderRadius: BorderRadius.circular(8),
-                    ),
-                    child: Column(
-                      crossAxisAlignment: isMe ? CrossAxisAlignment.end : CrossAxisAlignment.start,
-                      children: [
-                        Text(
-                          message["text"]!,
-                          style: const TextStyle(color: Colors.white),
+            child: StreamBuilder<QuerySnapshot>(
+              stream: _firestore
+                  .collection('chats')
+                  .doc(chatId)
+                  .collection('messages')
+                  .orderBy('timestamp', descending: false)
+                  .snapshots(),
+              builder: (context, snapshot) {
+                if (snapshot.hasError) {
+                  return Center(child: Text('Error: ${snapshot.error}'));
+                }
+
+                if (snapshot.connectionState == ConnectionState.waiting) {
+                  return const Center(child: CircularProgressIndicator());
+                }
+
+                final messages = snapshot.data!.docs;
+
+                return ListView.builder(
+                  padding: const EdgeInsets.all(16),
+                  reverse: true,
+                  itemCount: messages.length,
+                  itemBuilder: (context, index) {
+                    final message = messages[index].data() as Map<String, dynamic>;
+                    final isMe = message['senderId'] == _currentUser?.uid;
+
+                    return Align(
+                      alignment: isMe ? Alignment.centerRight : Alignment.centerLeft,
+                      child: Container(
+                        margin: const EdgeInsets.only(bottom: 8),
+                        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                        decoration: BoxDecoration(
+                          color: isMe ? const Color(0xFF005C4B) : const Color(0xFF1F2C33),
+                          borderRadius: BorderRadius.circular(8),
                         ),
-                        const SizedBox(height: 4),
-                        Text(
-                          message["time"]!,
-                          style: const TextStyle(
-                            color: Colors.white54,
-                            fontSize: 12,
-                          ),
+                        child: Column(
+                          crossAxisAlignment:
+                          isMe ? CrossAxisAlignment.end : CrossAxisAlignment.start,
+                          children: [
+                            Text(
+                              message['text'],
+                              style: const TextStyle(color: Colors.white),
+                            ),
+                            const SizedBox(height: 4),
+                            Text(
+                              _formatTime(message['timestamp']),
+                              style: const TextStyle(
+                                color: Colors.white54,
+                                fontSize: 12,
+                              ),
+                            ),
+                          ],
                         ),
-                      ],
-                    ),
-                  ),
+                      ),
+                    );
+                  },
                 );
               },
             ),
           ),
+
+          // Input Field (fully preserved)
           Container(
             padding: const EdgeInsets.all(8),
             color: const Color(0xFF1F1F1F),
@@ -208,6 +265,7 @@ class _ChatDetailPageState extends State<ChatDetailPage> {
                       hintStyle: TextStyle(color: Colors.white54),
                       border: InputBorder.none,
                     ),
+                    onSubmitted: (_) => _sendMessage(),
                   ),
                 ),
                 IconButton(
