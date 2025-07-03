@@ -46,29 +46,44 @@ class _ChatDetailPageState extends State<ChatDetailPage> {
   }
 
   Future<void> _sendMessage() async {
-    if (_messageController.text.isEmpty || _currentUser == null) return;
+    final text = _messageController.text.trim();
+    if (text.isEmpty || _currentUser == null) return;
 
     final chatId = _generateChatId();
+    final chatRef = _firestore.collection('chats').doc(chatId);
 
-    await _firestore
-        .collection('chats')
-        .doc(chatId)
-        .collection('messages')
-        .add({
-      'text': _messageController.text,
-      'senderId': _currentUser.uid,
-      'receiverId': widget.userId,
-      'timestamp': FieldValue.serverTimestamp(),
-      'isRead': false,
-    });
+    try {
+      // 1. First ensure chat document exists
+      await chatRef.set({
+        'userIds': [_currentUser.uid, widget.userId]..sort(),
+        'createdAt': FieldValue.serverTimestamp(),
+      }, SetOptions(merge: true)); // Merge to preserve existing fields
 
-    await _firestore.collection('chats').doc(chatId).update({
-      'lastMessage': _messageController.text,
-      'lastMessageTime': FieldValue.serverTimestamp(),
-      'lastSenderId': _currentUser.uid,
-    });
+      // 2. Add message to subcollection
+      await chatRef.collection('messages').add({
+        'text': text,
+        'senderId': _currentUser.uid,
+        'receiverId': widget.userId,
+        'timestamp': FieldValue.serverTimestamp(),
+        'isRead': false,
+      });
 
-    _messageController.clear();
+      // 3. Update last message metadata
+      await chatRef.update({
+        'lastMessage': text,
+        'lastMessageTime': FieldValue.serverTimestamp(),
+        'lastSenderId': _currentUser.uid,
+      });
+
+      // 4. Only clear if everything succeeds
+      _messageController.clear();
+
+    } catch (e) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('Message sent but update failed: $e')),
+      );
+      _messageController.clear(); // Still clear input despite metadata error
+    }
   }
 
   Future<void> _markMessagesAsRead() async {
