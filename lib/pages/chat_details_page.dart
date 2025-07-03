@@ -4,7 +4,7 @@ import 'package:firebase_auth/firebase_auth.dart';
 
 class ChatDetailPage extends StatefulWidget {
   final String chatName;
-  final String userId; // Other user's UID
+  final String userId;
 
   const ChatDetailPage({
     Key? key,
@@ -20,6 +20,7 @@ class _ChatDetailPageState extends State<ChatDetailPage> {
   final TextEditingController _messageController = TextEditingController();
   final FirebaseFirestore _firestore = FirebaseFirestore.instance;
   final User? _currentUser = FirebaseAuth.instance.currentUser;
+  final ScrollController _scrollController = ScrollController();
   Map<String, dynamic>? _userData;
 
   @override
@@ -27,6 +28,13 @@ class _ChatDetailPageState extends State<ChatDetailPage> {
     super.initState();
     _fetchUserData();
     _markMessagesAsRead();
+    WidgetsBinding.instance.addPostFrameCallback((_) => _scrollToBottom());
+  }
+
+  @override
+  void dispose() {
+    _scrollController.dispose();
+    super.dispose();
   }
 
   Future<void> _fetchUserData() async {
@@ -53,13 +61,11 @@ class _ChatDetailPageState extends State<ChatDetailPage> {
     final chatRef = _firestore.collection('chats').doc(chatId);
 
     try {
-      // 1. First ensure chat document exists
       await chatRef.set({
         'userIds': [_currentUser.uid, widget.userId]..sort(),
         'createdAt': FieldValue.serverTimestamp(),
-      }, SetOptions(merge: true)); // Merge to preserve existing fields
+      }, SetOptions(merge: true));
 
-      // 2. Add message to subcollection
       await chatRef.collection('messages').add({
         'text': text,
         'senderId': _currentUser.uid,
@@ -68,21 +74,18 @@ class _ChatDetailPageState extends State<ChatDetailPage> {
         'isRead': false,
       });
 
-      // 3. Update last message metadata
       await chatRef.update({
         'lastMessage': text,
         'lastMessageTime': FieldValue.serverTimestamp(),
         'lastSenderId': _currentUser.uid,
       });
 
-      // 4. Only clear if everything succeeds
       _messageController.clear();
-
+      _scrollToBottom();
     } catch (e) {
       ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('Message sent but update failed: $e')),
+        SnackBar(content: Text('Failed to send message: $e')),
       );
-      _messageController.clear(); // Still clear input despite metadata error
     }
   }
 
@@ -106,7 +109,16 @@ class _ChatDetailPageState extends State<ChatDetailPage> {
     return '${date.hour}:${date.minute.toString().padLeft(2, '0')}';
   }
 
-  // Three-dot menu (fully preserved from your original)
+  void _scrollToBottom() {
+    if (_scrollController.hasClients) {
+      _scrollController.animateTo(
+        _scrollController.position.maxScrollExtent,
+        duration: Duration(milliseconds: 300),
+        curve: Curves.easeOut,
+      );
+    }
+  }
+
   void _showMoreOptions() {
     showModalBottomSheet(
       context: context,
@@ -157,7 +169,6 @@ class _ChatDetailPageState extends State<ChatDetailPage> {
         backgroundColor: const Color(0xFF1F1F1F),
         title: Row(
           children: [
-            // Profile Picture (fully preserved)
             CircleAvatar(
               backgroundColor: Colors.teal,
               backgroundImage: _userData?['profile_image'] != null
@@ -168,7 +179,6 @@ class _ChatDetailPageState extends State<ChatDetailPage> {
                   : null,
             ),
             const SizedBox(width: 8),
-            // User Name (fully preserved)
             Flexible(
               child: Text(
                 _userData != null
@@ -180,7 +190,6 @@ class _ChatDetailPageState extends State<ChatDetailPage> {
             ),
           ],
         ),
-        // Call Buttons & Menu (fully preserved)
         actions: [
           IconButton(
             icon: const Icon(Icons.videocam, color: Colors.white),
@@ -198,14 +207,13 @@ class _ChatDetailPageState extends State<ChatDetailPage> {
       ),
       body: Column(
         children: [
-          // Real-time Messages
           Expanded(
             child: StreamBuilder<QuerySnapshot>(
               stream: _firestore
                   .collection('chats')
                   .doc(chatId)
                   .collection('messages')
-                  .orderBy('timestamp', descending: false)
+                  .orderBy('timestamp', descending: false) // Ascending order (oldest first)
                   .snapshots(),
               builder: (context, snapshot) {
                 if (snapshot.hasError) {
@@ -218,9 +226,12 @@ class _ChatDetailPageState extends State<ChatDetailPage> {
 
                 final messages = snapshot.data!.docs;
 
+                WidgetsBinding.instance.addPostFrameCallback((_) => _scrollToBottom());
+
                 return ListView.builder(
+                  controller: _scrollController,
                   padding: const EdgeInsets.all(16),
-                  reverse: true,
+                  reverse: false, // Normal top-to-bottom order
                   itemCount: messages.length,
                   itemBuilder: (context, index) {
                     final message = messages[index].data() as Map<String, dynamic>;
@@ -260,8 +271,6 @@ class _ChatDetailPageState extends State<ChatDetailPage> {
               },
             ),
           ),
-
-          // Input Field (fully preserved)
           Container(
             padding: const EdgeInsets.all(8),
             color: const Color(0xFF1F1F1F),
