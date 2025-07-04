@@ -104,9 +104,14 @@ class _ChatDetailPageState extends State<ChatDetailPage> {
     }
   }
 
-  String _formatTime(Timestamp timestamp) {
-    final date = timestamp.toDate();
-    return '${date.hour}:${date.minute.toString().padLeft(2, '0')}';
+  String _formatTime(Timestamp? timestamp) {
+    if (timestamp == null) return '--:--';
+    try {
+      final date = timestamp.toDate();
+      return '${date.hour}:${date.minute.toString().padLeft(2, '0')}';
+    } catch (e) {
+      return '--:--';
+    }
   }
 
   void _scrollToBottom() {
@@ -213,7 +218,7 @@ class _ChatDetailPageState extends State<ChatDetailPage> {
                   .collection('chats')
                   .doc(chatId)
                   .collection('messages')
-                  .orderBy('timestamp', descending: false) // Ascending order (oldest first)
+                  .orderBy('timestamp', descending: false)
                   .snapshots(),
               builder: (context, snapshot) {
                 if (snapshot.hasError) {
@@ -231,11 +236,13 @@ class _ChatDetailPageState extends State<ChatDetailPage> {
                 return ListView.builder(
                   controller: _scrollController,
                   padding: const EdgeInsets.all(16),
-                  reverse: false, // Normal top-to-bottom order
+                  reverse: false,
                   itemCount: messages.length,
                   itemBuilder: (context, index) {
                     final message = messages[index].data() as Map<String, dynamic>;
                     final isMe = message['senderId'] == _currentUser?.uid;
+                    final timestamp = message['timestamp'] as Timestamp?;
+                    final text = message['text'] as String? ?? '';
 
                     return Align(
                       alignment: isMe ? Alignment.centerRight : Alignment.centerLeft,
@@ -251,12 +258,12 @@ class _ChatDetailPageState extends State<ChatDetailPage> {
                           isMe ? CrossAxisAlignment.end : CrossAxisAlignment.start,
                           children: [
                             Text(
-                              message['text'],
+                              text,
                               style: const TextStyle(color: Colors.white),
                             ),
                             const SizedBox(height: 4),
                             Text(
-                              _formatTime(message['timestamp']),
+                              _formatTime(timestamp),
                               style: const TextStyle(
                                 color: Colors.white54,
                                 fontSize: 12,
